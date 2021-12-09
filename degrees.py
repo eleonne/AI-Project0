@@ -1,7 +1,7 @@
 import csv
 import sys
 
-from util import Node, StackFrontier, QueueFrontier
+from util import Actor, Node, StackFrontier, QueueFrontier
 
 # Maps names to a set of corresponding person_ids
 names = {}
@@ -62,12 +62,15 @@ def main():
     load_data(directory)
     print("Data loaded.")
 
-    source = person_id_for_name(input("Name: "))
+    source = "Emma Watson" #person_id_for_name(input("Name: "))
     if source is None:
         sys.exit("Person not found.")
-    target = person_id_for_name(input("Name: "))
+    target = "Jack Nicholson" #person_id_for_name(input("Name: "))
     if target is None:
         sys.exit("Person not found.")
+
+    source = Node(state=get_actor(person_id_for_name(source)), parent=None, action=None)
+    target = Node(state=get_actor(person_id_for_name(target)), parent=None, action=None)
 
     path = shortest_path(source, target)
 
@@ -76,15 +79,16 @@ def main():
     else:
         degrees = len(path)
         print(f"{degrees} degrees of separation.")
-        path = [(None, source)] + path
+        path = [(None, source.state.id)] + path
+        # print(path)
+        # return 
         for i in range(degrees):
             person1 = people[path[i][1]]["name"]
             person2 = people[path[i + 1][1]]["name"]
             movie = movies[path[i + 1][0]]["title"]
             print(f"{i + 1}: {person1} and {person2} starred in {movie}")
 
-
-def shortest_path(source, target):
+def shortest_path(start, goal):
     """
     Returns the shortest list of (movie_id, person_id) pairs
     that connect the source to the target.
@@ -93,8 +97,40 @@ def shortest_path(source, target):
     """
 
     # TODO
-    raise NotImplementedError
+    frontier = StackFrontier()
+    frontier.add(start)
+    while True:
+        # Verify if the frontier is not empty. If its empty, there is no possible solution
+        if frontier.empty():
+            raise Exception('No paths available')
 
+        # Remove a node from the frontier
+        current_node = frontier.remove()
+
+        # Check if the node is the goal. If goal is found, finish the search
+        if current_node.state.id == goal.state.id:
+            solution = []
+            # Walk the tree backwards tracing the path
+            while current_node.parent is not None:
+                solution.append([current_node.action, current_node.state.id])
+                current_node = current_node.parent
+
+            # Reverse the solution so the path is in the right order
+            solution.reverse()
+            return solution
+
+        # Add the node to the Explored list when the goal is not found yet
+        frontier.addExplored(current_node)
+
+        # Add neighbours to the frontier and keep searching
+        for neighbour in neighbors_for_person(current_node.state.id):
+            actor = get_actor(neighbour[1])
+            if not frontier.contains_state(actor) and not frontier.contains_explored_state(actor):
+                child = Node(state=actor, parent=current_node, action=neighbour[0])
+                frontier.add(child)
+        
+def get_actor (person_id):
+    return Actor(person_id, people[person_id]['name'])
 
 def person_id_for_name(name):
     """
